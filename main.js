@@ -490,9 +490,178 @@ window.speechSynthesis &&
 if (!state.chats.length) {
   createChat("Getting started");
   appendMessageToActive(
-    "bot",
-    "Hello! NeonAI ready. Use the mic or type. Toggle Voice Conversation for hands-free two-way voice."
+    "Hello! Solution AI ready. Use the mic or type. Toggle Voice Conversation for hands-free two-way voice."
   );
 }
 renderChatList();
 renderActive();
+
+
+/* -------------------------
+          Quiz Playground Logic
+        ---------------------------*/
+
+// --- Get all the new HTML elements ---
+const playgroundBtn = document.getElementById("playgroundbtn");
+const chatView = document.querySelector(".app > .main"); // Your existing chat main
+const playgroundView = document.getElementById("playgroundView");
+
+const quizSetup = document.getElementById("quiz-setup");
+const quizTopicInput = document.getElementById("quizTopicInput");
+const startQuizBtn = document.getElementById("startQuizBtn");
+
+const quizLoading = document.getElementById("quiz-loading");
+const quizContainer = document.getElementById("quiz-container");
+const quizResults = document.getElementById("quiz-results");
+
+const scoreText = document.getElementById("scoreText");
+const retakeQuizBtn = document.getElementById("retakeQuizBtn");
+
+let currentQuizData = null; // To store the quiz questions and answers
+
+// --- Toggle between Chat and Playground views ---
+playgroundBtn.addEventListener("click", () => {
+  // Check which view is currently active by seeing if it's hidden
+  if (chatView.classList.contains("hidden")) {
+    // Show Chat, Hide Playground
+    chatView.classList.remove("hidden");
+    playgroundView.classList.add("hidden");
+    playgroundBtn.textContent = "Playground";
+  } else {
+    // Show Playground, Hide Chat
+    chatView.classList.add("hidden");
+    playgroundView.classList.remove("hidden");
+    playgroundBtn.textContent = "Back to Chat";
+    // Reset playground to the setup screen
+    resetPlayground();
+  }
+});
+
+// --- Start Quiz Button ---
+startQuizBtn.addEventListener("click", async () => {
+  const topic = quizTopicInput.value.trim();
+  if (!topic) {
+    alert("Please enter a topic.");
+    return;
+  }
+
+  // Show loading, hide setup
+  quizSetup.classList.add("hidden");
+  quizLoading.classList.remove("hidden");
+  quizResults.classList.add("hidden");
+  quizContainer.innerHTML = ""; // Clear old quiz
+  quizContainer.classList.add("hidden");
+
+  try {
+    const quizData = await fetchQuiz(topic);
+    currentQuizData = quizData; // Store the quiz data
+    renderQuiz(quizData);
+    
+    // Hide loading, show quiz
+    quizLoading.classList.add("hidden");
+    quizContainer.classList.remove("hidden");
+
+  } catch (error) {
+    console.error("Failed to start quiz:", error);
+    alert("Error generating quiz. Please try again. \n" + error.message);
+    resetPlayground();
+  }
+});
+
+// --- Fetch quiz from our new backend endpoint ---
+async function fetchQuiz(topic) {
+  try {
+    const response = await fetch("http://127.0.0.1:5000/generate_quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic: topic }),
+    });
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || `HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    if (!data.questions || data.questions.length === 0) {
+      throw new Error("AI returned an empty or invalid quiz.");
+    }
+    return data;
+  } catch (error) {
+    console.error("fetchQuiz error:", error);
+    throw error; // Re-throw to be caught by the click handler
+  }
+}
+
+// --- Display the quiz questions and options ---
+function renderQuiz(quizData) {
+  quizContainer.innerHTML = ""; // Clear previous
+  
+  quizData.questions.forEach((q, index) => {
+    const questionEl = document.createElement("div");
+    questionEl.className = "quiz-question";
+    
+    let optionsHTML = "";
+    q.options.forEach((option, i) => {
+      const optionId = `q${index}-option${i}`;
+      optionsHTML += `
+        <div>
+          <input type="radio" id="${optionId}" name="question-${index}" value="${escapeHtml(option)}">
+          <label for="${optionId}">${escapeHtml(option)}</label>
+        </div>
+      `;
+    });
+
+    questionEl.innerHTML = `
+      <p>${index + 1}. ${escapeHtml(q.question)}</p>
+      <div class="quiz-options" data-question-index="${index}">
+        ${optionsHTML}
+      </div>
+    `;
+    quizContainer.appendChild(questionEl);
+  });
+  
+  // Add a submit button at the end
+  const submitBtn = document.createElement("button");
+  submitBtn.className = "btn primary";
+  submitBtn.id = "submitQuizBtn";
+  submitBtn.textContent = "Submit Answers";
+  submitBtn.onclick = handleSubmitQuiz; //
+  quizContainer.appendChild(submitBtn);
+}
+
+// --- Handle scoring when "Submit" is clicked ---
+function handleSubmitQuiz() {
+  if (!currentQuizData) return;
+
+  let score = 0;
+  const total = currentQuizData.questions.length;
+
+  currentQuizData.questions.forEach((q, index) => {
+    // Find the selected answer for this question
+    const selectedRadio = document.querySelector(`input[name="question-${index}"]:checked`);
+    if (selectedRadio) {
+      const userAnswer = selectedRadio.value;
+      if (userAnswer === q.correct_answer) {
+        score++;
+      }
+    }
+  });
+
+  // Show the results
+  scoreText.textContent = `You scored ${score} out of ${total}!`;
+  quizContainer.classList.add("hidden");
+  quizResults.classList.remove("hidden");
+}
+
+// --- "Take New Quiz" Button ---
+retakeQuizBtn.addEventListener("click", resetPlayground);
+
+function resetPlayground() {
+  quizSetup.classList.remove("hidden");
+  quizLoading.classList.add("hidden");
+  quizContainer.classList.add("hidden");
+  quizResults.classList.add("hidden");
+  
+  quizTopicInput.value = "";
+  quizContainer.innerHTML = "";
+  currentQuizData = null;
+}

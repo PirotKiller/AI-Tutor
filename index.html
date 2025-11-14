@@ -148,6 +148,38 @@
           </div>
         </div>
       </main>
+      <main class="main hidden" id="playgroundView">
+        <div class="topbar">
+          <div>
+            <div class="session-title">Quiz Playground</div>
+            <div class="session-sub">Test your knowledge</div>
+          </div>
+        </div>
+
+        <section class="chat-window">
+          <div id="quiz-setup">
+            <h3>Enter a topic to start a quiz:</h3>
+            <input id="quizTopicInput" placeholder="e.g., 'The Solar System' or 'Python Functions'" />
+            <button class="btn primary" id="startQuizBtn">Start Quiz</button>
+          </div>
+
+          <div id="quiz-loading" class="hidden" style="text-align: center;">
+            <p>Generating your quiz...</p>
+            <div class="typing" style="margin: auto;">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+          </div>
+
+          <div id="quiz-container" class="hidden">
+            </div>
+
+          <div id="quiz-results" class="hidden">
+            <h3>Quiz Complete!</h3>
+            <p id="scoreText">You scored 0 out of 0.</p>
+            <button class="btn" id="retakeQuizBtn">Take New Quiz</button>
+          </div>
+        </section>
+      </main>
     </div>
     <script src="main.js"></script>
   </body>
